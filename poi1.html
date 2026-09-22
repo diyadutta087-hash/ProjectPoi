@@ -1,0 +1,1506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+
+    <!-- Leaflet Draw -->
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css"
+    />
+
+    <style>
+        * {
+    box-sizing: border-box;
+}
+    
+html,
+body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    font-family: Arial, sans-serif;
+    overflow: hidden;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Instructions */
+
+.instructions {
+    padding: 7px 12px;
+    background: #e9f7ff;
+    border-bottom: 1px solid #ddd;
+    font-size: 13px;
+    flex-shrink: 0;
+}
+
+/* Toolbar */
+
+.toolbar {
+    background: white;
+    padding: 8px 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    align-items: center;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+    position: relative;
+    z-index: 1000;
+    flex-shrink: 0;
+}
+
+button {
+    border: none;
+    padding: 8px 14px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+#searchBtn {
+    background: #198754;
+    color: white;
+}
+
+#clearBtn {
+    background: #dc3545;
+    color: white;
+}
+
+#csvBtn {
+    background: #0d6efd;
+    color: white;
+}
+
+#geojsonBtn {
+    background: #6f42c1;
+    color: white;
+}
+
+button:disabled {
+    background: #aaa !important;
+    cursor: not-allowed;
+}
+
+.status {
+    margin-left: auto;
+    font-weight: bold;
+    font-size: 13px;
+}
+
+
+/* Map */
+
+#map {
+    width: 100%;
+    height: 55vh;
+    min-height: 350px;
+    flex-shrink: 0;
+}
+
+
+/* Location search */
+
+.location-search {
+    position: absolute;
+    top: 95px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+
+    background: white;
+    padding: 6px;
+
+    border-radius: 6px;
+
+    box-shadow:
+        0 2px 8px rgba(0,0,0,0.25);
+
+    display: flex;
+    gap: 5px;
+}
+
+.location-search input {
+    width: 300px;
+
+    padding: 8px 10px;
+
+    border: 1px solid #ccc;
+    border-radius: 4px;
+
+    font-size: 13px;
+}
+
+.location-search button {
+    background: #0d6efd;
+    color: white;
+}
+
+
+/* Results panel */
+
+.panel {
+    background: white;
+    padding: 6px 10px 10px 10px;
+
+    flex: 1;
+    min-height: 0;
+
+    display: flex;
+    flex-direction: column;
+}
+
+
+/* Summary */
+
+.summary {
+    font-size: 13px;
+    margin-bottom: 5px;
+
+    flex-shrink: 0;
+}
+
+
+/* Table */
+
+.table-container {
+    flex: 1;
+    min-height: 0;
+
+    overflow-y: auto;
+    overflow-x: auto;
+
+    border: 1px solid #ddd;
+}
+
+
+/* Table */
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+th {
+    background: #343a40;
+    color: white;
+
+    position: sticky;
+    top: 0;
+
+    padding: 7px;
+
+    white-space: nowrap;
+}
+
+td {
+    border: 1px solid #ddd;
+
+    padding: 6px;
+
+    white-space: nowrap;
+}
+
+tr:hover {
+    background: #f1f1f1;
+    cursor: pointer;
+}
+
+.category {
+    font-weight: bold;
+}
+
+
+/* Mobile */
+
+@media (max-width: 700px) {
+
+    html,
+    body {
+        overflow: auto;
+    }
+
+    #map {
+        height: 55vh;
+        min-height: 300px;
+    }
+
+    .location-search {
+        width: 90%;
+        top: 100px;
+    }
+
+    .location-search input {
+        width: 100%;
+    }
+
+    .status {
+        width: 100%;
+        margin-left: 0;
+    }
+
+    .panel {
+        min-height: 300px;
+    }
+}
+
+
+    </style>
+</head>
+
+<body>
+
+<div class="instructions">
+    <b>Instructions:</b>
+    Use the polygon tool on the map to draw an area, then click
+    <b>Search POIs</b>.
+</div>
+
+<div class="toolbar">
+
+    <button id="searchBtn" disabled>
+        🔍 Search POIs
+    </button>
+
+    <button id="clearBtn">
+        🗑 Clear
+    </button>
+
+    <button id="csvBtn" disabled>
+        ⬇ Download CSV
+    </button>
+
+    <button id="geojsonBtn" disabled>
+        ⬇ Download GeoJSON
+    </button>
+
+    <span class="status" id="status">
+        Draw a polygon
+    </span>
+
+</div>
+
+<div id="map-container">
+
+    <div class="location-search">
+
+        <input
+            type="text"
+            id="coordinateInput"
+            placeholder="Enter Lat, Lng e.g. 17.4065, 78.4772"
+        />
+
+        <button id="locationBtn">
+            Go
+        </button>
+
+    </div>
+
+    <div id="map"></div>
+
+</div>
+<div class="panel">
+
+    <div class="summary" id="summary">
+        No POIs found.
+    </div>
+
+    <div class="table-container">
+
+        <table id="poiTable">
+
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Name</th>
+                    <th>Category</th>
+                    <th>Latitude</th>
+                    <th>Longitude</th>
+                    <th>OSM Type</th>
+                    <th>OSM ID</th>
+                </tr>
+            </thead>
+
+            <tbody id="poiBody">
+            </tbody>
+
+        </table>
+
+    </div>
+
+</div>
+
+
+<!-- Leaflet -->
+<script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
+</script>
+
+<!-- Leaflet Draw -->
+<script
+    src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js">
+</script>
+
+
+<script>
+
+    // ============================================================
+    // MAP
+    // ============================================================
+
+    const map = L.map("map").setView(
+        [17.4065, 78.4772],
+        12
+    );
+
+
+    // OpenStreetMap base map
+
+    L.tileLayer(
+        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        {
+            maxZoom: 19,
+            attribution:
+                '&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a>'
+        }
+    ).addTo(map);
+
+
+    // ============================================================
+    // DRAWING
+    // ============================================================
+
+    const drawnItems = new L.FeatureGroup();
+
+    map.addLayer(drawnItems);
+
+
+    const drawControl = new L.Control.Draw({
+
+        position: "topleft",
+
+        draw: {
+
+            polyline: false,
+            rectangle: true,
+            circle: false,
+            circlemarker: false,
+            marker: false,
+
+            polygon: {
+
+                allowIntersection: false,
+
+                showArea: true,
+
+                shapeOptions: {
+                    color: "#198754",
+                    weight: 3,
+                    fillOpacity: 0.15
+                }
+            }
+        },
+
+        edit: {
+            featureGroup: drawnItems
+        }
+    });
+
+
+    map.addControl(drawControl);
+
+
+    let selectedPolygon = null;
+
+    let poiMarkers = L.layerGroup().addTo(map);
+
+    let poiData = [];
+
+
+    // ============================================================
+    // POLYGON CREATED
+    // ============================================================
+
+    map.on(
+        L.Draw.Event.CREATED,
+        function(event) {
+
+            drawnItems.clearLayers();
+
+            poiMarkers.clearLayers();
+
+            poiData = [];
+
+            selectedPolygon = event.layer;
+
+            drawnItems.addLayer(selectedPolygon);
+
+            document.getElementById(
+                "searchBtn"
+            ).disabled = false;
+
+            document.getElementById(
+                "csvBtn"
+            ).disabled = true;
+
+            document.getElementById(
+                "geojsonBtn"
+            ).disabled = true;
+
+            document.getElementById(
+                "status"
+            ).innerText =
+                "Polygon selected. Click Search POIs.";
+
+            document.getElementById(
+                "summary"
+            ).innerText =
+                "Ready to search.";
+
+            clearTable();
+        }
+    );
+
+
+    // ============================================================
+    // SEARCH POIs
+    // ============================================================
+
+    document
+        .getElementById("searchBtn")
+        .addEventListener(
+            "click",
+            searchPOIs
+        );
+
+
+    async function searchPOIs() {
+
+        if (!selectedPolygon) {
+
+            alert("Please draw a polygon first.");
+
+            return;
+        }
+
+
+        const searchBtn =
+            document.getElementById("searchBtn");
+
+
+        searchBtn.disabled = true;
+
+
+        document.getElementById(
+            "status"
+        ).innerText =
+            "Searching OpenStreetMap...";
+
+
+        document.getElementById(
+            "summary"
+        ).innerText =
+            "Please wait...";
+
+
+        poiMarkers.clearLayers();
+
+        poiData = [];
+
+        clearTable();
+
+
+        try {
+
+            const latLngs =
+                selectedPolygon.getLatLngs()[0];
+
+
+            // ----------------------------------------------------
+            // Convert Leaflet coordinates to Overpass format
+            //
+            // Overpass polygon:
+            // latitude longitude
+            // ----------------------------------------------------
+
+            const polygonString =
+                latLngs
+                    .map(
+                        p =>
+                            `${p.lat} ${p.lng}`
+                    )
+                    .join(" ");
+
+
+            // ----------------------------------------------------
+            // Overpass Query
+            //
+            // We search common POI categories.
+            // ----------------------------------------------------
+
+            const query = `
+
+                [out:json][timeout:120];
+
+                (
+
+                    node["amenity"]["name"]
+                        (poly:"${polygonString}");
+
+                    way["amenity"]["name"]
+                        (poly:"${polygonString}");
+
+                    relation["amenity"]["name"]
+                        (poly:"${polygonString}");
+
+
+                    node["shop"]["name"]
+                        (poly:"${polygonString}");
+
+                    way["shop"]["name"]
+                        (poly:"${polygonString}");
+
+                    relation["shop"]["name"]
+                        (poly:"${polygonString}");
+
+
+                    node["tourism"]["name"]
+                        (poly:"${polygonString}");
+
+                    way["tourism"]["name"]
+                        (poly:"${polygonString}");
+
+                    relation["tourism"]["name"]
+                        (poly:"${polygonString}");
+
+
+                    node["leisure"]["name"]
+                        (poly:"${polygonString}");
+
+                    way["leisure"]["name"]
+                        (poly:"${polygonString}");
+
+                    relation["leisure"]["name"]
+                        (poly:"${polygonString}");
+
+
+                    node["healthcare"]["name"]
+                        (poly:"${polygonString}");
+
+                    way["healthcare"]["name"]
+                        (poly:"${polygonString}");
+
+                    relation["healthcare"]["name"]
+                        (poly:"${polygonString}");
+
+
+                    node["office"]["name"]
+                        (poly:"${polygonString}");
+
+                    way["office"]["name"]
+                        (poly:"${polygonString}");
+
+                    relation["office"]["name"]
+                        (poly:"${polygonString}");
+
+
+                    node["craft"]["name"]
+                        (poly:"${polygonString}");
+
+                    way["craft"]["name"]
+                        (poly:"${polygonString}");
+
+                    relation["craft"]["name"]
+                        (poly:"${polygonString}");
+
+                );
+
+                out center tags;
+
+            `;
+
+
+            // ----------------------------------------------------
+            // Call Overpass
+            // ----------------------------------------------------
+
+            const response =
+                await fetch(
+                    "https://overpass-api.de/api/interpreter",
+                    {
+                        method: "POST",
+
+                        headers: {
+                            "Content-Type":
+                                "text/plain"
+                        },
+
+                        body: query
+                    }
+                );
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    "Overpass server returned " +
+                    response.status
+                );
+            }
+
+
+            const data =
+                await response.json();
+
+
+            // ----------------------------------------------------
+            // Process results
+            // ----------------------------------------------------
+
+            poiData =
+                processPOIs(
+                    data.elements
+                );
+
+
+            displayPOIs(poiData);
+
+
+            document.getElementById(
+                "status"
+            ).innerText =
+                `Found ${poiData.length} POIs`;
+
+
+            document.getElementById(
+                "summary"
+            ).innerText =
+                `${poiData.length} named POIs found inside the selected polygon.`;
+
+
+            if (poiData.length > 0) {
+
+                document.getElementById(
+                    "csvBtn"
+                ).disabled = false;
+
+                document.getElementById(
+                    "geojsonBtn"
+                ).disabled = false;
+
+            }
+
+        }
+        catch(error) {
+
+            console.error(error);
+
+            document.getElementById(
+                "status"
+            ).innerText =
+                "Search failed.";
+
+            document.getElementById(
+                "summary"
+            ).innerText =
+                error.message;
+
+            alert(
+                "Unable to retrieve POIs.\n\n" +
+                error.message +
+                "\n\nPlease try again."
+            );
+
+        }
+        finally {
+
+            searchBtn.disabled = false;
+
+        }
+
+    }
+
+
+    // ============================================================
+    // PROCESS POIs
+    // ============================================================
+
+    function processPOIs(elements) {
+
+        const results = [];
+
+        const duplicateCheck =
+            new Set();
+
+
+        elements.forEach(
+            element => {
+
+                const tags =
+                    element.tags || {};
+
+
+                if (!tags.name) {
+                    return;
+                }
+
+
+                let lat = null;
+                let lng = null;
+
+
+                // Node
+
+                if (
+                    element.type === "node"
+                ) {
+
+                    lat = element.lat;
+                    lng = element.lon;
+
+                }
+
+                // Way / Relation
+
+                else if (
+                    element.center
+                ) {
+
+                    lat =
+                        element.center.lat;
+
+                    lng =
+                        element.center.lon;
+
+                }
+
+
+                if (
+                    lat === null ||
+                    lng === null
+                ) {
+
+                    return;
+
+                }
+
+
+                // ------------------------------------------------
+                // Duplicate key
+                // ------------------------------------------------
+
+                const key =
+                    `${tags.name}|${lat.toFixed(6)}|${lng.toFixed(6)}`;
+
+
+                if (
+                    duplicateCheck.has(key)
+                ) {
+
+                    return;
+
+                }
+
+
+                duplicateCheck.add(key);
+
+
+                results.push({
+
+                    id: element.id,
+
+                    osmType:
+                        element.type,
+
+                    name:
+                        tags.name,
+
+                    latitude:
+                        lat,
+
+                    longitude:
+                        lng,
+
+                    category:
+                        getCategory(tags),
+
+                    tags:
+                        tags
+                });
+
+            }
+        );
+
+
+        // Sort by name
+
+        results.sort(
+            (a, b) =>
+                a.name.localeCompare(
+                    b.name
+                )
+        );
+
+
+        return results;
+
+    }
+
+
+    // ============================================================
+    // CATEGORY
+    // ============================================================
+
+    function getCategory(tags) {
+
+        if (tags.amenity)
+            return "amenity=" + tags.amenity;
+
+        if (tags.shop)
+            return "shop=" + tags.shop;
+
+        if (tags.tourism)
+            return "tourism=" + tags.tourism;
+
+        if (tags.leisure)
+            return "leisure=" + tags.leisure;
+
+        if (tags.healthcare)
+            return "healthcare=" + tags.healthcare;
+
+        if (tags.office)
+            return "office=" + tags.office;
+
+        if (tags.craft)
+            return "craft=" + tags.craft;
+
+        return "other";
+
+    }
+
+
+    // ============================================================
+    // DISPLAY POIs
+    // ============================================================
+
+    function displayPOIs(pois) {
+
+        clearTable();
+
+        poiMarkers.clearLayers();
+
+
+        const tbody =
+            document.getElementById(
+                "poiBody"
+            );
+
+
+        pois.forEach(
+            (poi, index) => {
+
+
+                // ----------------------------------------------
+                // Marker
+                // ----------------------------------------------
+
+                const marker =
+                    L.marker([
+                        poi.latitude,
+                        poi.longitude
+                    ]);
+
+
+                marker.bindPopup(`
+
+                    <div style="min-width:220px">
+
+                        <h3 style="margin-top:0">
+                            ${escapeHtml(poi.name)}
+                        </h3>
+
+                        <b>Category:</b>
+                        ${escapeHtml(poi.category)}
+                        <br><br>
+
+                        <b>Latitude:</b>
+                        ${poi.latitude}
+                        <br>
+
+                        <b>Longitude:</b>
+                        ${poi.longitude}
+                        <br><br>
+
+                        <b>OSM:</b>
+                        ${poi.osmType}
+                        /
+                        ${poi.id}
+
+                    </div>
+
+                `);
+
+
+                marker.addTo(
+                    poiMarkers
+                );
+
+
+                // ----------------------------------------------
+                // Table row
+                // ----------------------------------------------
+
+                const tr =
+                    document.createElement(
+                        "tr"
+                    );
+
+
+                tr.innerHTML = `
+
+                    <td>${index + 1}</td>
+
+                    <td>
+                        ${escapeHtml(poi.name)}
+                    </td>
+
+                    <td class="category">
+                        ${escapeHtml(poi.category)}
+                    </td>
+
+                    <td>
+                        ${poi.latitude.toFixed(6)}
+                    </td>
+
+                    <td>
+                        ${poi.longitude.toFixed(6)}
+                    </td>
+
+                    <td>
+                        ${poi.osmType}
+                    </td>
+
+                    <td>
+                        ${poi.id}
+                    </td>
+
+                `;
+
+
+                tr.addEventListener(
+                    "click",
+                    function() {
+
+                        map.setView(
+                            [
+                                poi.latitude,
+                                poi.longitude
+                            ],
+                            18
+                        );
+
+                        marker.openPopup();
+
+                    }
+                );
+
+
+                tbody.appendChild(tr);
+
+            }
+        );
+
+    }
+
+
+    // ============================================================
+    // CLEAR TABLE
+    // ============================================================
+
+    function clearTable() {
+
+        document.getElementById(
+            "poiBody"
+        ).innerHTML = "";
+
+    }
+
+
+    // ============================================================
+    // CLEAR
+    // ============================================================
+
+    document
+        .getElementById("clearBtn")
+        .addEventListener(
+            "click",
+            function() {
+
+                drawnItems.clearLayers();
+
+                poiMarkers.clearLayers();
+
+                selectedPolygon = null;
+
+                poiData = [];
+
+                clearTable();
+
+
+                document.getElementById(
+                    "searchBtn"
+                ).disabled = true;
+
+
+                document.getElementById(
+                    "csvBtn"
+                ).disabled = true;
+
+
+                document.getElementById(
+                    "geojsonBtn"
+                ).disabled = true;
+
+
+                document.getElementById(
+                    "status"
+                ).innerText =
+                    "Draw a polygon";
+
+
+                document.getElementById(
+                    "summary"
+                ).innerText =
+                    "No POIs found.";
+
+            }
+        );
+
+
+    // ============================================================
+    // DOWNLOAD CSV
+    // ============================================================
+
+    document
+        .getElementById("csvBtn")
+        .addEventListener(
+            "click",
+            downloadCSV
+        );
+
+
+    function downloadCSV() {
+
+        if (poiData.length === 0)
+            return;
+
+
+        const headers = [
+            "Name",
+            "Category",
+            "Latitude",
+            "Longitude",
+            "OSM Type",
+            "OSM ID"
+        ];
+
+
+        const rows =
+            poiData.map(
+                poi => [
+
+                    csvEscape(poi.name),
+
+                    csvEscape(poi.category),
+
+                    poi.latitude,
+
+                    poi.longitude,
+
+                    poi.osmType,
+
+                    poi.id
+
+                ].join(",")
+            );
+
+
+        const csv =
+            [
+                headers.join(","),
+                ...rows
+            ].join("\n");
+
+
+        downloadFile(
+            csv,
+            "osm_pois.csv",
+            "text/csv"
+        );
+
+    }
+
+
+    // ============================================================
+    // DOWNLOAD GEOJSON
+    // ============================================================
+
+    document
+        .getElementById("geojsonBtn")
+        .addEventListener(
+            "click",
+            downloadGeoJSON
+        );
+
+
+    function downloadGeoJSON() {
+
+        if (poiData.length === 0)
+            return;
+
+
+        const geojson = {
+
+            type: "FeatureCollection",
+
+            features:
+                poiData.map(
+                    poi => ({
+
+                        type: "Feature",
+
+                        geometry: {
+
+                            type: "Point",
+
+                            coordinates: [
+
+                                poi.longitude,
+
+                                poi.latitude
+
+                            ]
+
+                        },
+
+                        properties: {
+
+                            name:
+                                poi.name,
+
+                            category:
+                                poi.category,
+
+                            latitude:
+                                poi.latitude,
+
+                            longitude:
+                                poi.longitude,
+
+                            osm_type:
+                                poi.osmType,
+
+                            osm_id:
+                                poi.id
+
+                        }
+
+                    })
+                )
+
+        };
+
+
+        downloadFile(
+
+            JSON.stringify(
+                geojson,
+                null,
+                2
+            ),
+
+            "osm_pois.geojson",
+
+            "application/geo+json"
+
+        );
+
+    }
+
+
+    // ============================================================
+    // FILE DOWNLOAD
+    // ============================================================
+
+    function downloadFile(
+        content,
+        filename,
+        mimeType
+    ) {
+
+        const blob =
+            new Blob(
+                [content],
+                {
+                    type: mimeType
+                }
+            );
+
+
+        const url =
+            URL.createObjectURL(blob);
+
+
+        const a =
+            document.createElement("a");
+
+
+        a.href = url;
+
+        a.download = filename;
+
+        document.body.appendChild(a);
+
+        a.click();
+
+        document.body.removeChild(a);
+
+        URL.revokeObjectURL(url);
+
+    }
+
+
+    // ============================================================
+    // CSV ESCAPE
+    // ============================================================
+
+    function csvEscape(value) {
+
+        if (value === null ||
+            value === undefined)
+            return "";
+
+        value =
+            String(value);
+
+
+        if (
+            value.includes(",") ||
+            value.includes('"') ||
+            value.includes("\n")
+        ) {
+
+            return '"' +
+                value.replace(
+                    /"/g,
+                    '""'
+                ) +
+                '"';
+
+        }
+
+
+        return value;
+
+    }
+
+
+    // ============================================================
+    // HTML ESCAPE
+    // ============================================================
+
+    function escapeHtml(value) {
+
+        return String(value)
+            .replace(
+                /&/g,
+                "&amp;"
+            )
+            .replace(
+                /</g,
+                "&lt;"
+            )
+            .replace(
+                />/g,
+                "&gt;"
+            )
+            .replace(
+                /"/g,
+                "&quot;"
+            )
+            .replace(
+                /'/g,
+                "&#039;"
+            );
+
+    }
+
+    // ============================================================
+// LOCATION SEARCH
+// ============================================================
+
+let locationMarker = null;
+
+const coordinateInput =
+    document.getElementById("coordinateInput");
+
+const locationBtn =
+    document.getElementById("locationBtn");
+
+
+// Search when pressing ENTER
+
+coordinateInput.addEventListener(
+    "keydown",
+    function(event) {
+
+        if (event.key === "Enter") {
+
+            findLocation();
+
+        }
+
+    }
+);
+
+
+// Search button
+
+locationBtn.addEventListener(
+    "click",
+    findLocation
+);
+
+
+function findLocation() {
+
+    const value =
+        coordinateInput.value.trim();
+
+
+    if (!value) {
+
+        alert("Please enter latitude and longitude.");
+
+        return;
+
+    }
+
+
+    // Accept:
+    //
+    // 17.4065, 78.4772
+    //
+    // 17.4065 78.4772
+    //
+    // 17.4065,78.4772
+
+    const parts =
+        value.split(/[,\s]+/);
+
+
+    if (parts.length < 2) {
+
+        alert(
+            "Invalid coordinates.\n\n" +
+            "Example:\n" +
+            "17.4065, 78.4772"
+        );
+
+        return;
+
+    }
+
+
+    const lat =
+        parseFloat(parts[0]);
+
+    const lng =
+        parseFloat(parts[1]);
+
+
+    // Validate
+
+    if (
+        isNaN(lat) ||
+        isNaN(lng) ||
+        lat < -90 ||
+        lat > 90 ||
+        lng < -180 ||
+        lng > 180
+    ) {
+
+        alert(
+            "Invalid latitude/longitude.\n\n" +
+            "Latitude must be between -90 and 90.\n" +
+            "Longitude must be between -180 and 180."
+        );
+
+        return;
+
+    }
+
+
+    // Remove previous location marker
+
+    if (locationMarker) {
+
+        map.removeLayer(locationMarker);
+
+    }
+
+
+    // Create marker
+
+    locationMarker =
+        L.marker([lat, lng])
+            .addTo(map);
+
+
+    locationMarker.bindPopup(`
+
+        <b>Selected Location</b>
+        <br><br>
+
+        Latitude:
+        ${lat.toFixed(6)}
+
+        <br>
+
+        Longitude:
+        ${lng.toFixed(6)}
+
+    `).openPopup();
+
+
+    // Zoom to location
+
+    map.setView(
+        [lat, lng],
+        17
+    );
+
+}
+
+</script>
+
+</body>
+</html>
+
+
+</body>
+</html>
